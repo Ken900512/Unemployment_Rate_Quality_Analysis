@@ -1,0 +1,168 @@
+---
+title: "青少年失業"
+author: "M122040017 吳俞憲"
+date: "2024-06-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(qcc)
+library(MASS)
+library(forecast)
+library(tseries)
+library(rugarch)
+data_year <- read.csv("./青年失業年100~112.csv")
+data_year <- data_year[1:13, ]
+data_month <- read.csv("./青年失業月100~112.csv")
+data_month <- data_month[1:156, ]
+data_month$order <- 1:nrow(data_month)
+```
+
+# 1 資料探索
+
+## 資料長條圖
+
+```{r}
+ggplot(data_year, aes(x = year, y = rate)) +
+  geom_bar(stat = "identity") +  
+  labs(title = "民國100年至112年的青年失業率(年平均)",
+       x = "民國(年)",
+       y = "失業率") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+
+```
+
+```{r}
+hist(data_year$rate, col='steelblue')
+```
+## scatter plot 青年失業(年)
+```{r}
+ggplot(data_year, aes(x = year, y = rate)) +
+  geom_line(color = "blue", size = 1) + 
+  labs(title = "Unemployment Rate Over Time",
+       x = "year",
+       y = "Unemployment Rate") +         
+  theme_minimal()
+
+```
+
+## 月
+
+```{r}
+ggplot(data_month, aes(x = order, y = rate)) +
+  geom_line(color = "blue", size = 1) + 
+  labs(title = "青年失業率",
+       x = "月單位",
+       y = "失業率") +         
+  theme_minimal()
+
+
+
+
+
+```
+
+
+
+
+
+## 檢測資料是否為常態
+
+### qq plot
+
+```{r}
+qqnorm(data_year$rate) 
+qqline(data_year$rate, qtype = 7) 
+```
+
+### Shapiro-Wilk Test
+
+```{r}
+shapiro.test(data_year$rate)
+```
+
+# 模型使用
+
+### MR chart(年份)
+```{r}
+my.xmr.raw.r <- matrix(cbind(data_year$rate[1:length(data_year$rate)-1], data_year$rate[2:length(data_year$rate)]), ncol=2)
+my.xmr.mr <- qcc(my.xmr.raw.r, type="R", title = "MR Chart",plot = TRUE)
+
+
+```
+
+### I chart(年份)
+```{r}
+qcc(data=data_year$rate, type="xbar.one",title="I Chart",  size=1)
+```
+
+### cumsum(年份)
+
+```{r}
+cusum1 <- cusum(data_year$rate, title="cusum Chart")
+```
+
+### EWMA (年份)
+
+```{r}
+ewma <- ewma(data_year$rate, title="EWMA")
+```
+
+## 2.以月為單位(查看時間序列)
+
+```{r}
+tsdisplay(data_month$rate, xlab = "time", ylab = "失業率")
+```
+### ADF檢測
+```{r}
+adf.test(data_month$rate)
+```
+
+
+
+
+
+
+
+## ARMA
+
+```{r}
+auto_model <- forecast::auto.arima(data_month$rate)
+summary(auto_model)
+```
+
+```{r}
+auto_mod <- auto.arima(data_month$rate, trace=TRUE)
+```
+
+
+
+```{r}
+arima_fit <- arima(data_month$rate,order = c(3, 1, 1) )
+summary(arima_fit)
+```
+
+### ARMA殘差
+
+```{r}
+residuals <- residuals(arima_fit)
+arima <- qcc(residuals, type = "xbar.one",title="ARMA")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

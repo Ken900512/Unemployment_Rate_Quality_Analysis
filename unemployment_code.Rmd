@@ -1,0 +1,225 @@
+---
+title: "品管期末"
+author: "M122040017 吳俞憲"
+date: "2024-05-31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(qcc)
+library(MASS)
+library(forecast)
+library(tseries)
+data <- read.csv("./失業率70~112.csv")
+data2 <- read.csv("./失業率月.csv")
+
+```
+
+```{r}
+data1 <- data[31:43,]
+
+```
+
+
+
+
+# 1 資料探索
+
+## 資料長條圖
+
+```{r}
+data1$year <- c(100:112)
+ggplot(data1, aes(x = year, y = rate)) +
+  geom_line(color = "blue", size = 1) + 
+  labs(title = "Unemployment Rate Over Time",
+       x = "year",
+       y = "Unemployment Rate") +         
+  theme_minimal()
+
+
+
+
+```
+
+##月
+
+```{r}
+data2$order <- 1:nrow(data2)
+ggplot(data2, aes(x = order, y = rate)) +
+  geom_line(color = "blue", size = 1) + 
+  labs(title = "Unemployment Rate Over Time",
+       x = "month",
+       y = "Unemployment Rate") +         
+  theme_minimal()
+
+```
+
+
+## 折線圖總失業
+
+```{r}
+ggplot(data1, aes(x = year, y = rate)) +
+  geom_line(color = "blue", size = 1) + 
+  labs(title = "Unemployment Rate Over Time",
+       x = "year",
+       y = "Unemployment Rate") +         
+  theme_minimal()
+
+
+
+```
+
+
+
+
+
+
+
+
+```{r}
+hist(data1$rate, col='steelblue')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 檢測資料是否為常態
+
+### qq plot
+
+```{r}
+qqnorm(data1$rate) 
+qqline(data1$rate, qtype = 7) 
+```
+
+### Shapiro-Wilk Test
+
+```{r}
+shapiro.test(data1$rate)
+```
+
+
+
+
+
+
+
+# 模型使用
+
+### MR chart(年份)
+```{r}
+my.xmr.raw.r <- matrix(cbind(data1$rate[1:length(data1$rate)-1], data1$rate[2:length(data1$rate)]), ncol=2)
+my.xmr.mr <- qcc(my.xmr.raw.r, type="R",title="MR chart", plot = TRUE)
+
+
+```
+
+
+
+### I chart(年份)
+```{r}
+qcc(data=data1$rate, type="xbar.one",title="I chart", size=1)
+```
+
+### cumsum(年份)
+
+```{r}
+cusum1 <- cusum(data1$rate,title="cusum Chart")
+```
+
+### EWMA (年份)
+
+```{r}
+ewma <- ewma(data1$rate, title="EWMA")
+```
+
+## 2.以月為單位(查看時間序列)
+
+```{r}
+tsdisplay(data2, xlab = "time", ylab = "失業率")
+```
+### ADF檢測
+```{r}
+adf.test(data2$rate)
+```
+我們可以看到p value>0.05，代表序列是非平穩的，後續會用一階差分處理
+
+### 一階差分結果
+
+```{r}
+data2_diff <- diff(data2$rate)
+tsdisplay(data2_diff, xlab = "time", ylab = "失業率")
+```
+###差分後的ADF
+
+```{r}
+adf.test(data2_diff)
+```
+
+可以看到p value <0.01，所以代表經過一階差分之後，序列便平穩了。。
+
+
+## 自相關檢定(Ljung-Box )
+
+```{r}
+box <-Box.test(data2_diff, lag = 12, type = "Ljung")
+print(box)
+```
+
+從檢定跟ACF、PACF圖來看都是有自相關的，所以後續會使用ARMA來製作管制圖
+
+## ARMA
+
+```{r}
+auto_model <- forecast::auto.arima(data2_diff)
+summary(auto_model)
+```
+
+```{r}
+auto_mod <- auto.arima(data2_diff, trace=TRUE)
+```
+### 模型結果
+```{r}
+arima_fit <- auto.arima(data2_diff)
+summary(arima_fit)
+
+```
+
+
+```{r}
+arima_fit <- arima(data2_diff,order = c(2, 0, 2) )
+summary(arima_fit)
+```
+
+## 再利用他的殘差畫管制圖
+
+```{r}
+residuals <- residuals(arima_fit)
+arima <- qcc(residuals, type = "xbar.one", title="ARMA")
+```
+超出管制線的點為111(2020  3~4差分)，124(2021 4~5差分) 125(2021 5~６) 126(2021 6~7)
+可以得到一些資訊
+ 
+
+
+
+
+
+
+
